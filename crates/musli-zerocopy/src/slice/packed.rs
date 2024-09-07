@@ -365,6 +365,14 @@ where
             self.len.as_usize::<E>(),
         ))
     }
+
+    #[inline]
+    unsafe fn load_unchecked<'buf>(&self, buf: &'buf Buf) -> Result<&'buf Self::Target, Error> {
+        buf.load_unchecked(Ref::<[T], Native, usize>::with_metadata(
+            self.offset.as_usize::<E>(),
+            self.len.as_usize::<E>(),
+        ))
+    }
 }
 
 impl<T, O, L, E> Clone for Packed<[T], O, L, E>

@@ -18,6 +18,9 @@ pub trait Load {
 
     /// Validate the value.
     fn load<'buf>(&self, buf: &'buf Buf) -> Result<&'buf Self::Target, Error>;
+
+    /// Validate the value without bounds checking. Method is unsafe because it did not validate the bounds.
+    unsafe fn load_unchecked<'buf>(&self, buf: &'buf Buf) -> Result<&'buf Self::Target, Error>;
 }
 
 /// Trait used for loading any kind of reference through [`Buf::load_mut`].
@@ -45,6 +48,11 @@ where
     fn load<'buf>(&self, buf: &'buf Buf) -> Result<&'buf Self::Target, Error> {
         buf.load_sized::<T>(self.offset())
     }
+
+    #[inline]
+    unsafe fn load_unchecked<'buf>(&self, buf: &'buf Buf) -> Result<&'buf Self::Target, Error> {
+        buf.load_sized::<T>(self.offset())
+    }
 }
 
 impl<T, E, O> Load for Ref<[T], E, O>
@@ -59,6 +67,11 @@ where
     fn load<'buf>(&self, buf: &'buf Buf) -> Result<&'buf Self::Target, Error> {
         buf.load_unsized(*self)
     }
+
+    #[inline]
+    unsafe fn load_unchecked<'buf>(&self, buf: &'buf Buf) -> Result<&'buf Self::Target, Error> {
+        buf.load_unsized(*self)
+    }
 }
 
 impl<E, O> Load for Ref<str, E, O>
@@ -71,6 +84,11 @@ where
     #[inline]
     fn load<'buf>(&self, buf: &'buf Buf) -> Result<&'buf Self::Target, Error> {
         buf.load_unsized(*self)
+    }
+
+    #[inline]
+    unsafe fn load_unchecked<'buf>(&self, buf: &'buf Buf) -> Result<&'buf Self::Target, Error> {
+        buf.load_unsized_unchecked(*self)
     }
 }
 

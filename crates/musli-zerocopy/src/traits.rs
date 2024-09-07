@@ -95,6 +95,13 @@ pub unsafe trait UnsizedZeroCopy: self::sealed::Sealed + Pointee {
         E: ByteOrder,
         O: Size;
 
+    /// Validate the buffer with the given capacity and return the decoded
+    /// This method is unsafe because it doesn't perform any validation.
+    unsafe fn validate_unsized_unchecked<E, O>(metadata: Self::Stored<O>) -> Self::Metadata
+    where
+        E: ByteOrder,
+        O: Size;
+
     /// Construct a wide pointer from a pointer and its associated metadata.
     ///
     /// # Safety
@@ -666,6 +673,15 @@ unsafe impl UnsizedZeroCopy for str {
     }
 
     #[inline]
+    unsafe fn validate_unsized_unchecked<E, O>(metadata: Self::Stored<O>) -> Self::Metadata
+    where
+        E: ByteOrder,
+        O: Size,
+    {
+        metadata.as_usize::<E>()
+    }
+
+    #[inline]
     unsafe fn with_metadata(data: NonNull<u8>, metadata: Self::Metadata) -> *const Self {
         let slice = slice::from_raw_parts(data.as_ptr(), metadata);
         str::from_utf8_unchecked(slice)
@@ -737,6 +753,15 @@ where
         }
 
         Ok(metadata)
+    }
+
+    #[inline]
+    unsafe fn validate_unsized_unchecked<E, O>(metadata: Self::Stored<O>) -> Self::Metadata
+    where
+        E: ByteOrder,
+        O: Size,
+    {
+        metadata.as_usize::<E>()
     }
 
     #[inline]

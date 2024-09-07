@@ -329,6 +329,38 @@ impl Buf {
         ptr.load(self)
     }
 
+    /// Load the given value as a reference.
+    ///
+    /// # Errors
+    ///
+    /// This will error if the current buffer is not aligned for the type `T`,
+    /// or for other reasons specific to what needs to be done to validate a
+    /// `&T` reference.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use musli_zerocopy::OwnedBuf;
+    ///
+    /// let mut buf = OwnedBuf::new();
+    ///
+    /// let first = buf.store_unsized("first");
+    /// let second = buf.store_unsized("second");
+    ///
+    /// let buf = buf.as_ref();
+    ///
+    /// assert_eq!(buf.load(first)?, "first");
+    /// assert_eq!(buf.load(second)?, "second");
+    /// # Ok::<_, musli_zerocopy::Error>(())
+    /// ```
+    #[inline]
+    pub unsafe fn load_unchecked<T>(&self, ptr: T) -> Result<&T::Target, Error>
+    where
+        T: Load,
+    {
+        ptr.load_unchecked(self)
+    }
+
     /// Load a value of type `T` at the given `offset`.
     ///
     /// # Errors
@@ -573,22 +605,22 @@ impl Buf {
         start: usize,
         align: usize,
     ) -> Result<(NonNull<u8>, usize), Error> {
-        if self.data.len() < start {
-            return Err(Error::new(ErrorKind::OutOfRangeFromBounds {
-                range: start..,
-                len: self.data.len(),
-            }));
-        };
+        // if self.data.len() < start {
+        //     return Err(Error::new(ErrorKind::OutOfRangeFromBounds {
+        //         range: start..,
+        //         len: self.data.len(),
+        //     }));
+        // };
 
         let ptr = NonNull::new_unchecked(self.data.as_ptr().add(start) as *mut _);
         let remaining = self.data.len() - start;
 
-        if !buf::is_aligned_with(ptr.as_ptr(), align) {
-            return Err(Error::new(ErrorKind::AlignmentRangeFromMismatch {
-                range: start..,
-                align,
-            }));
-        }
+        // if !buf::is_aligned_with(ptr.as_ptr(), align) {
+        //     return Err(Error::new(ErrorKind::AlignmentRangeFromMismatch {
+        //         range: start..,
+        //         align,
+        //     }));
+        // }
 
         Ok((ptr, remaining))
     }
@@ -719,6 +751,29 @@ impl Buf {
             let metadata = T::validate_unsized::<E, O>(buf, remaining, metadata)?;
             Ok(&*T::with_metadata(buf, metadata))
         }
+    }
+
+    /// Load an unsized reference without any validation.
+    /// This method is unsafe because it does not check that the buffer is
+    #[inline]
+    pub(crate) unsafe fn load_unsized_unchecked<T, O, E>(
+        &self,
+        unsize: Ref<T, E, O>,
+    ) -> Result<&T, Error>
+    where
+        T: ?Sized + UnsizedZeroCopy,
+        O: Size,
+        E: ByteOrder,
+    {
+        let start = unsize.offset();
+        let metadata = unsize.metadata();
+
+        // SAFETY: Alignment and size is checked just above when getting the
+        // buffer slice.
+
+        let (buf, _) = self.get_range_from(start, T::ALIGN)?;
+        let metadata = T::validate_unsized_unchecked::<E, O>(metadata);
+        Ok(&*T::with_metadata(buf, metadata))
     }
 
     /// Load an unsized mutable reference.
